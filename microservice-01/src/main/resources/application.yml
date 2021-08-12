@@ -1,0 +1,121 @@
+server: 
+  port: 8081
+
+spring: 
+  application: 
+    name: microservice-01
+  cloud:
+    loadbalancer:
+      ribbon:
+        enabled: false
+  # sleuth:
+  #   sampler:
+  #     probability: 1.0
+  # zipkin:
+  #   base-url: http://localhost:9411
+
+loadbalancer:
+  client:
+    name: microservice-01
+
+eureka:
+  instance:
+    preferIpAddress: true
+    lease-renewal-interval-in-seconds: 300     # Service Registry Interval Time(1초)
+    lease-expiration-duration-in-seconds: 300  # Service Registry Duration Time(2초)
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      # defaultZone: http://CLTSOSSIFEUREKA.apps.internal/eureka/
+      # defaultZone: http://CLTSOSSIFEUREKA.apps.pas.nhbank.test.nonghyup.com/eureka/
+      defaultZone: http://localhost:8091/eureka/
+      # defaultZone: http://localhost:8091/eureka/, http://localhost:8092/eureka/, http://localhost:8093/eureka/
+    # Service Registry Cache Interval Time(3초)
+    registry-fetch-interval-seconds: 300
+    disable-delta: true
+    
+
+management:
+  endpoint:
+    shutdown:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  # http://localhost:8081/actuator/prometheus 에서 Resilience4j 관련 메트릭도 수집가능
+
+# Resilience4j Setting
+resilience4j.circuitbreaker:
+  # circuitBreakerAspectOrder: 1
+  configs:
+    default:
+      registerHealthIndicator: true
+      # actuator를 통해 circuitbraker 상태를 확인하기 위해 설정
+      slidingWindowSize: 10
+      # Circuit 기준 Window Size
+      minimumNumberOfCalls: 2
+      # Circuit Breaker가 에러 비율 또 slow call 비율을 계산하기 전에 요구되는 최소한의 요청 수
+      failureRateThreshold: 70
+      # 에러 비율 (퍼센트)로 해당 값 이상으로 에러 발생시 서킷이 Open 된다.
+      waitDurationInOpenState: 20000
+      # 서킷의 상태가 Open에서 Half-open으로 변경되기 전에 Circuit Breaker가 기다리는 시간[ms]
+  instances:
+    nhCircuitBreaker:
+      baseConfig: default
+
+resilience4j.bulkhead:
+  instances:
+    nhCircuitBreaker:
+      maxConcurrentCalls: 25
+      # 허가된 동시 실행 수를 25로 지정(Test : 10)
+      maxWaitDuration: 0
+      # 포화 상태의 Bulkhead에 진입하기 위해 block 되는 최대 시간, 값이 0이므로 바로 요청을 막는다.
+
+resilience4j.ratelimiter:
+  instances:
+    nhCircuitBreaker:
+      limitForPeriod: 200
+      # limitRefreshPeriod 기간 동안 허용되는 요청 수를 200으로 설정(Test : 5)
+      limitRefreshPeriod: 10s
+      # limit refresh 기간
+      timeoutDuration: 0
+      # 허가를 위해 쓰레드가 대기하는 기본 시간
+      registerHealthIndicator: false
+      eventConsumerBufferSize: 100
+
+# fallback method가 정의되어있지 않은 에러의 경우에만 재시도 한다.
+resilience4j.retry:
+  # retryAspectOrder: 2
+  instances:
+    nhCircuitBreaker:
+      maxRetryAttempts: 3
+      # 최대 재시도 수
+      waitDuration: 500ms
+      # 재시도 사이에 고정된 시간
+      retryExceptions:
+        # Empty 일 경우 모든 에러 클래스에 대해 재시도
+        # - java.net.ConnectException
+        # - java.util.concurrent.TimeoutException
+        # - org.springframework.web.reactive.function.client.WebClientResponseException
+        # - org.springframework.web.client.HttpServerErrorException
+        # - io.github.resilience4j.circuitbreaker.Exception
+
+resilience4j.timelimiter:
+  instances:
+    nhCircuitBreaker:
+      timeoutDuration: 2s
+      # 원격 서버로부터 해당 시간안에 응답이 오는 것을 제한
+
+resilience4j:
+  circuitbreaker:
+    circuitBreakerAspectOrder: 1
+  retry:
+    retryAspectOrder: 4
+  rateLimiter:
+    rateLimiterAspectOrder: 2
+  bulkhead:
+    bulkheadAcpectOrder: 3
+
+  

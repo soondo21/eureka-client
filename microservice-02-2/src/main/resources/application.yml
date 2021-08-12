@@ -1,0 +1,41 @@
+server: 
+  port: 8083
+
+spring: 
+  application: 
+    name: microservice-02
+  cloud:
+    loadbalancer:
+      ribbon:
+        enabled: false
+  sleuth:
+    sampler:
+      probability: 1.0
+  zipkin:
+    base-url: http://localhost:9411
+
+eureka:
+  instance:
+    lease-renewal-interval-in-seconds: 30   # Service Registry Interval Time(1초)
+    lease-expiration-duration-in-seconds: 30  # Service Registry Duration Time(2초)
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://CLTSOSSIFEUREKA.apps.pas.nhbank.test.nonghyup.com/eureka/
+      # defaultZone: http://localhost:8787/eureka/
+    # Service Registry Cache Interval Time(3초)
+    registry-fetch-interval-seconds: 30
+    disable-delta: true
+  server:
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 60000
+
+management:
+  endpoint:
+    shutdown:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: shutdown,info
